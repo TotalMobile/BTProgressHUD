@@ -15,6 +15,7 @@
 //  Version 1.6.1
 using System;
 using System.Collections.Generic;
+using TTGSnackBar;
 
 #if __UNIFIED__
 using UIKit;
@@ -156,7 +157,7 @@ namespace BigTed
 
         public void ShowToast(string status, MaskType maskType = MaskType.None, ToastPosition toastPosition = ToastPosition.Center, double timeoutMs = 1000)
         {
-            obj.InvokeOnMainThread(() => ShowProgressWorker(status: status, textOnly: true, toastPosition: toastPosition, timeoutMs: timeoutMs, maskType: maskType));
+            obj.InvokeOnMainThread(() => ShowProgressWorker(status: status, textOnly: true, toastPosition: ToastPosition.Bottom, timeoutMs: timeoutMs, maskType: maskType));
         }
 
         public void SetStatus(string status)
@@ -176,7 +177,6 @@ namespace BigTed
 
         public void ShowImage(UIImage image, string status, double timeoutMs = 1000)
         {
-
             obj.InvokeOnMainThread(() => ShowImageWorker(image, status, TimeSpan.FromMilliseconds(timeoutMs)));
         }
 
@@ -279,6 +279,41 @@ namespace BigTed
                         break;
                 }
             }
+        }
+        
+        public void ShowSnackBar(
+            string message,
+            string actionText = null,
+            Action actionCallback = null,
+            double timeoutMs = 5000)
+        {
+            // All default logic done here
+            UIApplication.SharedApplication.InvokeOnMainThread(() =>
+            {
+                TTGSnackbar snackbar;
+
+                if (string.IsNullOrEmpty(actionText))
+                {
+                    snackbar = new TTGSnackbar(message);
+                }
+                else
+                {
+                    snackbar = new TTGSnackbar(message, actionText, sb =>
+                    {
+                        actionCallback?.Invoke();
+                    });
+                }
+
+                snackbar.Duration = TimeSpan.FromMilliseconds(timeoutMs);
+
+                snackbar.BackgroundColor = UIColor.FromWhiteAlpha(0.1f, 0.95f);
+                snackbar.MessageTextColor = UIColor.White;
+                snackbar.CornerRadius = 8;
+                snackbar.LocationType = TTGSnackbarLocation.Bottom;
+                snackbar.AnimationType = TTGSnackbarAnimationType.SlideFromBottomBackToBottom;
+
+                snackbar.Show();
+            });
         }
 
         void ShowProgressWorker(float progress = -1, string status = null, MaskType maskType = MaskType.None, bool textOnly = false,
