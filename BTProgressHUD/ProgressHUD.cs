@@ -158,6 +158,51 @@ namespace BigTed
         {
             obj.InvokeOnMainThread(() => ShowProgressWorker(status: status, textOnly: true, toastPosition: toastPosition, timeoutMs: timeoutMs, maskType: maskType));
         }
+        
+        public void ShowSnackBar(
+            string message,
+            string actionText = null,
+            Action actionCallback = null,
+            double timeoutMs = 3000)
+        {
+            
+            const int MaxLength = 50;
+            string displayMessage = message;
+
+            if (!string.IsNullOrEmpty(message) && message.Length > MaxLength)
+            {
+                int trimLength = Math.Max(0, MaxLength - 3);
+    
+                displayMessage = (trimLength > 0) 
+                    ? message.Substring(0, trimLength) + "..."
+                    : "...";
+            }
+
+            if (string.IsNullOrEmpty(actionText))
+            {
+                obj.InvokeOnMainThread(() => ShowProgressWorker(
+                    status: displayMessage,
+                    textOnly: true,
+                    toastPosition: ToastPosition.Bottom,
+                    timeoutMs: timeoutMs,
+                    maskType: MaskType.None
+                ));
+            }
+            
+            else
+            {
+                obj.InvokeOnMainThread(() => ShowProgressWorker(
+                    status: displayMessage,
+                    textOnly: true,
+                    toastPosition: ToastPosition.Bottom, 
+                    timeoutMs: timeoutMs,
+                    maskType: MaskType.None,
+                    cancelCaption: actionText,
+                    cancelCallback: actionCallback,
+                    snackBar: true
+                ));
+            }
+        }
 
         public void SetStatus(string status)
         {
@@ -283,7 +328,7 @@ namespace BigTed
 
         void ShowProgressWorker(float progress = -1, string status = null, MaskType maskType = MaskType.None, bool textOnly = false,
                                  ToastPosition toastPosition = ToastPosition.Center, string cancelCaption = null, Action cancelCallback = null,
-                                 double timeoutMs = 1000, bool showContinuousProgress = false, UIImage displayContinuousImage = null)
+                                 double timeoutMs = 1000, bool showContinuousProgress = false, UIImage displayContinuousImage = null, bool snackBar = false)
         {
 
             Ring.ResetStyle(IsiOS7ForLookAndFeel, (IsiOS7ForLookAndFeel ? TintColor : UIColor.White));
@@ -330,6 +375,11 @@ namespace BigTed
 
             UpdatePosition(textOnly);
 
+            if (snackBar)
+            {
+                SetSnackbarLayout(textOnly, cancelCaption);
+            }
+            
             if (showContinuousProgress)
             {
                 if (displayContinuousImage != null)
@@ -1034,6 +1084,104 @@ namespace BigTed
             if (newtimer != null)
                 _progressTimer = newtimer;
         }
+        
+        public void SetSnackbarLayout(bool textOnly, string actionText)
+        {
+            const int SeparatorTag = 999;
+            
+            // Check if it's a snackbar (text-only with an action)
+            bool isSnackBar = textOnly && !string.IsNullOrEmpty(actionText);
+
+            // Remove any previous separator bar
+            UIView existingSeparator = HudView.ViewWithTag(SeparatorTag);
+            if (existingSeparator != null)
+            {
+                existingSeparator.RemoveFromSuperview();
+            }
+
+            if (!isSnackBar)
+            {
+                return;
+            }
+
+            // --- Layout Constants ---
+            nfloat SnackBarHeight = 48f;
+            nfloat LeftRightPadding = 16f;
+            nfloat SeparatorButtonGap = 4f;
+            nfloat TextButtonSpacing = 8f;
+            
+            // Variables for final dimensions
+            nfloat finalHudHeight = SnackBarHeight; 
+            nfloat finalHudWidth; 
+            
+            // --- Measurements ---
+            nfloat stringWidth = StringLabel.Frame.Width;
+            nfloat stringHeight = StringLabel.Frame.Height;
+
+            // 1. MEASURE ACTION BUTTON WIDTH 
+            nfloat actionButtonWidth;
+            nfloat actionButtonHeight;
+
+            // Placeholder: Replace with real measurement logic
+            actionButtonWidth = 50f; 
+            actionButtonHeight = 20f; 
+            
+            // Add button padding
+            actionButtonWidth += LeftRightPadding; 
+            
+            // Calculate screen-spanning width
+            nfloat screenWidth = UIApplication.SharedApplication.KeyWindow.Bounds.Width;
+            nfloat horizontalScreenMargin = 16f; 
+
+            // Set final width (screen span minus margins)
+            finalHudWidth = screenWidth - (horizontalScreenMargin * 2);
+
+            // 3. APPLY HUD BOUNDS
+            HudView.Bounds = new CGRect(0, 0, finalHudWidth, finalHudHeight);
+            
+            // 4. POSITION ACTION BUTTON (right-aligned)
+            nfloat buttonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
+            nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2);
+
+            var cancelRect = new CGRect(buttonX, buttonY, actionButtonWidth, actionButtonHeight);
+            CancelHudButton.Frame = cancelRect;
+
+            // 5. POSITION MESSAGE LABEL (left-aligned and centered)
+            nfloat labelX = LeftRightPadding;
+            nfloat labelY = (finalHudHeight / 2) - (stringHeight / 2);
+            
+            // Max width calculation
+            nfloat separatorStartX = buttonX - TextButtonSpacing;
+            nfloat maxLabelWidth = separatorStartX - TextButtonSpacing - LeftRightPadding;
+            
+            // Set label frame
+            StringLabel.Frame = new CGRect(labelX, labelY, 
+                                           Math.Min(stringWidth, maxLabelWidth), 
+                                           stringHeight);
+            StringLabel.TextAlignment = UITextAlignment.Left;
+            
+            // --- 6 ADD SEPARATOR BAR ---
+            
+            nfloat barWidth = 1f;
+            nfloat verticalMargin = 8f; 
+            nfloat barHeight = finalHudHeight - (verticalMargin * 2); 
+            
+            // Position bar relative to the button
+            nfloat barX = buttonX - SeparatorButtonGap - barWidth;    
+            nfloat barY = (finalHudHeight / 2) - (barHeight / 2); 
+            
+            // Create view and style
+            UIView separator = new UIView(new CGRect(barX, barY, barWidth, barHeight));
+            separator.BackgroundColor = UIColor.White;
+            separator.Tag = SeparatorTag;
+            
+            // Add to HUD
+            HudView.AddSubview(separator);
+            
+            // 7. HIDE SPINNER
+            SpinnerView.StopAnimating();
+            RingLayer.StrokeEnd = 0.0f;
+        }   
 
         void UpdatePosition(bool textOnly = false)
         {
