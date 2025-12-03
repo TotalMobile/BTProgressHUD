@@ -166,7 +166,7 @@ namespace BigTed
             double timeoutMs = 3000)
         {
             
-            const int MaxLength = 50;
+            const int MaxLength = 70;
             string displayMessage = message;
 
             if (!string.IsNullOrEmpty(message) && message.Length > MaxLength)
@@ -1084,7 +1084,7 @@ namespace BigTed
             if (newtimer != null)
                 _progressTimer = newtimer;
         }
-        
+
         public void SetSnackbarLayout(bool textOnly, string actionText)
         {
             const int SeparatorTag = 999;
@@ -1105,19 +1105,26 @@ namespace BigTed
             }
 
             // --- Layout Constants ---
-            nfloat SnackBarHeight = 48f;
+            nfloat MinSnackBarHeight = 48f;          // Minimum height for the bar
+            nfloat VerticalTextPadding = 12f;      // Padding above and below the text (e.g., 6f top + 6f bottom)
             nfloat LeftRightPadding = 16f;
             nfloat SeparatorButtonGap = 4f;
             nfloat TextButtonSpacing = 8f;
             
             // Variables for final dimensions
-            nfloat finalHudHeight = SnackBarHeight; 
+            nfloat finalHudHeight; 
             nfloat finalHudWidth; 
             
-            // --- Measurements ---
-            nfloat stringWidth = StringLabel.Frame.Width;
-            nfloat stringHeight = StringLabel.Frame.Height;
+            // --- Screen Width Calculation ---
+            nfloat screenWidth = UIApplication.SharedApplication.KeyWindow.Bounds.Width;
+            nfloat horizontalScreenMargin = 16f; 
+            finalHudWidth = screenWidth - (horizontalScreenMargin * 2);
 
+            // --- Label Configuration for Multi-Line Measurement ---
+            StringLabel.Lines = 0; // CRUCIAL: Allow unlimited lines for measurement and display
+            StringLabel.LineBreakMode = UILineBreakMode.WordWrap;
+            StringLabel.TextAlignment = UITextAlignment.Left; // Ensure left alignment
+            
             // 1. MEASURE ACTION BUTTON WIDTH 
             nfloat actionButtonWidth;
             nfloat actionButtonHeight;
@@ -1129,46 +1136,67 @@ namespace BigTed
             // Add button padding
             actionButtonWidth += LeftRightPadding; 
             
-            // Calculate screen-spanning width
-            nfloat screenWidth = UIApplication.SharedApplication.KeyWindow.Bounds.Width;
-            nfloat horizontalScreenMargin = 16f; 
+            // --- Determine Available Text Width for Measurement ---
+            nfloat tempButtonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
+            // Max width = ButtonStartX - SeparatorButtonGap - SeparatorWidth(1f) - TextButtonSpacing - LeftPadding
+            nfloat maxLabelWidth = tempButtonX - SeparatorButtonGap - 1f - TextButtonSpacing - LeftRightPadding;
 
-            // Set final width (screen span minus margins)
-            finalHudWidth = screenWidth - (horizontalScreenMargin * 2);
-
-            // 3. APPLY HUD BOUNDS
+            // 2. RE-MEASURE TEXT HEIGHT (Crucial for multi-line support)
+            nfloat stringWidth;
+            nfloat stringHeight;
+            string @string = StringLabel.Text;
+            
+            if (IsIOS7OrNewer)
+            {
+                var stringSize = new NSString(@string).GetBoundingRect(
+                    new CGSize(maxLabelWidth, nfloat.MaxValue), // Use maxLabelWidth & infinite height
+                    NSStringDrawingOptions.UsesLineFragmentOrigin,
+                    new UIStringAttributes { Font = StringLabel.Font },
+                    null
+                );
+                stringWidth = stringSize.Width;
+                stringHeight = stringSize.Height;
+            }
+            else
+            {
+                var stringSize =
+                    new NSString(@string).StringSize(StringLabel.Font, new CGSize(maxLabelWidth, nfloat.MaxValue));
+                // Use maxLabelWidth & infinite height);
+                stringWidth = stringSize.Width;
+                stringHeight = stringSize.Height; 
+            }
+            
+            // 3. CALCULATE FINAL HUD HEIGHT
+            // Required height = text height + vertical padding (top and bottom)
+            nfloat requiredHeight = stringHeight + (VerticalTextPadding * 2);
+            finalHudHeight = NMath.Max(MinSnackBarHeight, requiredHeight);    
+            // 4. APPLY HUD BOUNDS
             HudView.Bounds = new CGRect(0, 0, finalHudWidth, finalHudHeight);
             
-            // 4. POSITION ACTION BUTTON (right-aligned)
+            // 5. POSITION ACTION BUTTON (right-aligned and vertically centered)
             nfloat buttonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
-            nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2);
+            nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2); // Center on new finalHudHeight
 
             var cancelRect = new CGRect(buttonX, buttonY, actionButtonWidth, actionButtonHeight);
             CancelHudButton.Frame = cancelRect;
 
-            // 5. POSITION MESSAGE LABEL (left-aligned and centered)
+            // 6. POSITION MESSAGE LABEL (left-aligned and vertically centered)
             nfloat labelX = LeftRightPadding;
-            nfloat labelY = (finalHudHeight / 2) - (stringHeight / 2);
-            
-            // Max width calculation
-            nfloat separatorStartX = buttonX - TextButtonSpacing;
-            nfloat maxLabelWidth = separatorStartX - TextButtonSpacing - LeftRightPadding;
-            
-            // Set label frame
+            nfloat labelY = (finalHudHeight / 2) - (stringHeight / 2); // Center on new finalHudHeight
+
+            // Set label frame (use max available width and measured height)
             StringLabel.Frame = new CGRect(labelX, labelY, 
-                                           Math.Min(stringWidth, maxLabelWidth), 
+                                           maxLabelWidth, 
                                            stringHeight);
-            StringLabel.TextAlignment = UITextAlignment.Left;
-            
-            // --- 6 ADD SEPARATOR BAR ---
+
+            // --- 7 ADD SEPARATOR BAR ---
             
             nfloat barWidth = 1f;
-            nfloat verticalMargin = 8f; 
-            nfloat barHeight = finalHudHeight - (verticalMargin * 2); 
+            nfloat barHeight = finalHudHeight - (VerticalTextPadding * 2); // Bar respects vertical padding
             
             // Position bar relative to the button
             nfloat barX = buttonX - SeparatorButtonGap - barWidth;    
-            nfloat barY = (finalHudHeight / 2) - (barHeight / 2); 
+            nfloat barY = (finalHudHeight / 2) - (barHeight / 2); // Center on new finalHudHeight
             
             // Create view and style
             UIView separator = new UIView(new CGRect(barX, barY, barWidth, barHeight));
@@ -1178,10 +1206,10 @@ namespace BigTed
             // Add to HUD
             HudView.AddSubview(separator);
             
-            // 7. HIDE SPINNER
+            // 8. HIDE SPINNER
             SpinnerView.StopAnimating();
             RingLayer.StrokeEnd = 0.0f;
-        }   
+        }
 
         void UpdatePosition(bool textOnly = false)
         {
