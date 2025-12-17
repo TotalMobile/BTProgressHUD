@@ -185,7 +185,8 @@ namespace BigTed
                     textOnly: true,
                     toastPosition: ToastPosition.Bottom,
                     timeoutMs: timeoutMs,
-                    maskType: MaskType.None
+                    maskType: MaskType.None,
+                    snackBar: true
                 ));
             }
             
@@ -1085,12 +1086,12 @@ namespace BigTed
                 _progressTimer = newtimer;
         }
 
-        public void SetSnackbarLayout(bool textOnly, string actionText)
+         public void SetSnackbarLayout(bool textOnly, string actionText)
         {
             const int SeparatorTag = 999;
             
-            // Check for snackbar condition
-            bool isSnackBar = textOnly && !string.IsNullOrEmpty(actionText);
+            bool hasAction = !string.IsNullOrEmpty(actionText);
+            bool isSnackBar = textOnly || hasAction;
 
             // Remove existing separator
             UIView existingSeparator = HudView.ViewWithTag(SeparatorTag);
@@ -1111,110 +1112,85 @@ namespace BigTed
             nfloat SeparatorButtonGap = 4f;
             nfloat TextButtonSpacing = 8f;
             
-            // Variables for dimensions
-            nfloat finalHudHeight; 
-            nfloat finalHudWidth; 
-            
-            // --- Screen Width Calculation ---
+            // --- Screen Width Calculation (Container Size) ---
+            // This part ensures the HUD itself is always wide
             nfloat screenWidth = UIApplication.SharedApplication.KeyWindow.Bounds.Width;
-
-            // Define horizontal margin
             nfloat desiredHorizontalMargin = 8f; 
+            nfloat finalHudWidth = screenWidth - (desiredHorizontalMargin * 2);
 
-            // Calculate final width
-            finalHudWidth = screenWidth - (desiredHorizontalMargin * 2);
-
-            // --- Apply Dark Mode Appearance ---
+            // Style configuration
             HudView.BackgroundColor = UIColor.FromRGB(39, 39, 41);
             StringLabel.TextColor = UIColor.White;
-            CancelHudButton.SetTitleColor(UIColor.White, UIControlState.Normal);            
-            
-            // --- Label Configuration ---
-            StringLabel.Lines = 0; // Allow multi-line
+            StringLabel.Lines = 0; 
             StringLabel.LineBreakMode = UILineBreakMode.WordWrap;
             StringLabel.TextAlignment = UITextAlignment.Left;
             
-            // 1. MEASURE ACTION BUTTON WIDTH 
-            nfloat actionButtonWidth;
-            nfloat actionButtonHeight;
+            // --- 2. DETERMINE AVAILABLE TEXT WIDTH ---
+            nfloat maxLabelWidth;
 
-            // Placeholder: Replace with real measurement logic
-            actionButtonWidth = 50f; 
-            actionButtonHeight = 20f; 
-            
-            // Add button padding
-            actionButtonWidth += LeftRightPadding; 
-            
-            // --- Determine Available Text Width ---
-            nfloat tempButtonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
-            
-            // Calculate max label width
-            nfloat maxLabelWidth = tempButtonX - SeparatorButtonGap - 1f - TextButtonSpacing - LeftRightPadding;
-
-            // 2. RE-MEASURE TEXT HEIGHT
-            nfloat stringWidth;
-            nfloat stringHeight;
-            string @string = StringLabel.Text;
-            
-            if (IsIOS7OrNewer)
+            if (!hasAction)
             {
-                var stringSize = new NSString(@string).GetBoundingRect(
-                    new CGSize(maxLabelWidth, nfloat.MaxValue),
-                    NSStringDrawingOptions.UsesLineFragmentOrigin,
-                    new UIStringAttributes { Font = StringLabel.Font },
-                    null
-                );
-                stringWidth = stringSize.Width;
-                stringHeight = stringSize.Height;
+                // TEXT ONLY: Use the full container width minus padding
+                maxLabelWidth = finalHudWidth - (LeftRightPadding * 2);
+                CancelHudButton.Hidden = true; 
             }
             else
             {
-                var stringSize = new NSString(@string).StringSize(StringLabel.Font, new CGSize(maxLabelWidth, nfloat.MaxValue));
-                stringWidth = stringSize.Width;
-                stringHeight = stringSize.Height; 
+                // WITH BUTTON: Calculate width minus the button and separator space
+                CancelHudButton.Hidden = false;
+                CancelHudButton.SetTitle(actionText, UIControlState.Normal);
+                CancelHudButton.SetTitleColor(UIColor.White, UIControlState.Normal);
+
+                nfloat actionButtonWidth = 50f + LeftRightPadding; 
+                nfloat tempButtonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
+                maxLabelWidth = tempButtonX - SeparatorButtonGap - 1f - TextButtonSpacing - LeftRightPadding;
             }
+
+            // 3. MEASURE TEXT HEIGHT
+            string @string = StringLabel.Text ?? string.Empty;
+            nfloat stringHeight;
             
-            // 3. CALCULATE FINAL HUD HEIGHT
+            var stringSize = new NSString(@string).GetBoundingRect(
+                new CGSize(maxLabelWidth, nfloat.MaxValue),
+                NSStringDrawingOptions.UsesLineFragmentOrigin,
+                new UIStringAttributes { Font = StringLabel.Font },
+                null
+            );
+            stringHeight = stringSize.Height;
+            
+            // 4. CALCULATE AND APPLY HUD BOUNDS
             nfloat requiredHeight = stringHeight + (VerticalTextPadding * 2);
-            finalHudHeight = NMath.Max(MinSnackBarHeight, requiredHeight);    
+            nfloat finalHudHeight = NMath.Max(MinSnackBarHeight, requiredHeight);    
             
-            // 4. APPLY HUD BOUNDS
+            // This forces the HUD container to the calculated wide width
             HudView.Bounds = new CGRect(0, 0, finalHudWidth, finalHudHeight);
             
-            // 5. POSITION ACTION BUTTON
-            nfloat buttonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
-            nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2);
-
-            var cancelRect = new CGRect(buttonX, buttonY, actionButtonWidth, actionButtonHeight);
-            CancelHudButton.Frame = cancelRect;
-
-            // 6. POSITION MESSAGE LABEL
+            // 5. POSITION MESSAGE LABEL
             nfloat labelX = LeftRightPadding;
             nfloat labelY = (finalHudHeight / 2) - (stringHeight / 2);
+            StringLabel.Frame = new CGRect(labelX, labelY, maxLabelWidth, stringHeight);
 
-            // Set label frame
-            StringLabel.Frame = new CGRect(labelX, labelY, 
-                                           maxLabelWidth, 
-                                           stringHeight);
+            // 6. POSITION ACTION BUTTON & SEPARATOR (Only if needed)
+            if (hasAction)
+            {
+                nfloat actionButtonWidth = 50f + LeftRightPadding; 
+                nfloat actionButtonHeight = 20f; 
+                nfloat buttonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
+                nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2);
 
-            // --- 7 ADD SEPARATOR BAR ---
+                CancelHudButton.Frame = new CGRect(buttonX, buttonY, actionButtonWidth, actionButtonHeight);
+
+                nfloat barWidth = 1f;
+                nfloat barHeight = finalHudHeight - (VerticalTextPadding * 2);
+                nfloat barX = buttonX - SeparatorButtonGap - barWidth;    
+                nfloat barY = (finalHudHeight / 2) - (barHeight / 2);
+                
+                UIView separator = new UIView(new CGRect(barX, barY, barWidth, barHeight));
+                separator.BackgroundColor = UIColor.White;
+                separator.Tag = SeparatorTag;
+                HudView.AddSubview(separator);
+            }
             
-            nfloat barWidth = 1f;
-            nfloat barHeight = finalHudHeight - (VerticalTextPadding * 2);
-            
-            // Position bar
-            nfloat barX = buttonX - SeparatorButtonGap - barWidth;    
-            nfloat barY = (finalHudHeight / 2) - (barHeight / 2);
-            
-            // Create separator view
-            UIView separator = new UIView(new CGRect(barX, barY, barWidth, barHeight));
-            separator.BackgroundColor = UIColor.White;
-            separator.Tag = SeparatorTag;
-            
-            // Add to HUD
-            HudView.AddSubview(separator);
-            
-            // 8. HIDE SPINNER
             SpinnerView.StopAnimating();
             RingLayer.StrokeEnd = 0.0f;
         }
