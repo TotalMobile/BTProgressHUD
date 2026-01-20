@@ -9,7 +9,10 @@ parameters:
     default: ''
   - name: dotNetSdkVersion
     type: string
-    default: '8.0.x'   
+    default: '8.0.x'
+  - name: iosWorkloadVersion
+    type: string
+    default: '10.0.102'
   - name: publishWebProjects
     type: boolean
     default: true       
@@ -27,11 +30,11 @@ steps:
       packageType: sdk
 
   - task: Bash@3
-    displayName: 'dotnet workload restore'
+    displayName: 'Install IOS Workload'
     inputs:
       targetType: 'inline'
       script: |
-        dotnet workload restore '$(Build.SourcesDirectory)/${{ parameters.projectPath }}'
+        dotnet workload install ios --version '$(iosWorkloadVersion)'
     
   - task: DotNetCoreCLI@2
     displayName: '.NET Restore'
