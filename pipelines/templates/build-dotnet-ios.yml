@@ -34,7 +34,7 @@ steps:
     inputs:
       targetType: 'inline'
       script: |
-        dotnet workload install ios --version '$(iosWorkloadVersion)'
+        dotnet workload install ios --version '${{parameters.iosWorkloadVersion}}'
     
   - task: DotNetCoreCLI@2
     displayName: '.NET Restore'
