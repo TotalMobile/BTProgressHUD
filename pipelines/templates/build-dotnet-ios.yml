@@ -9,7 +9,7 @@ parameters:
     default: ''
   - name: dotNetSdkVersion
     type: string
-    default: '8.0.x'
+    default: '10.0.x'
   - name: iosWorkloadVersion
     type: string
     default: '10.0.102'
