@@ -163,46 +163,31 @@ namespace BigTed
             string message,
             string actionText = null,
             Action actionCallback = null,
-            double timeoutMs = 3000)
+            double timeoutMs = 3000,
+            int maxLength = 70)
         {
             
-            const int MaxLength = 70;
             string displayMessage = message;
 
-            if (!string.IsNullOrEmpty(message) && message.Length > MaxLength)
+            if (maxLength > 0 && !string.IsNullOrEmpty(message) && message.Length > maxLength)
             {
-                int trimLength = Math.Max(0, MaxLength - 3);
+                int trimLength = Math.Max(0, maxLength - 3);
     
                 displayMessage = (trimLength > 0) 
                     ? message.Substring(0, trimLength) + "..."
                     : "...";
             }
-
-            if (string.IsNullOrEmpty(actionText))
-            {
-                obj.InvokeOnMainThread(() => ShowProgressWorker(
-                    status: displayMessage,
-                    textOnly: true,
-                    toastPosition: ToastPosition.Bottom,
-                    timeoutMs: timeoutMs,
-                    maskType: MaskType.None,
-                    snackBar: true
-                ));
-            }
-            
-            else
-            {
-                obj.InvokeOnMainThread(() => ShowProgressWorker(
-                    status: displayMessage,
-                    textOnly: true,
-                    toastPosition: ToastPosition.Bottom, 
-                    timeoutMs: timeoutMs,
-                    maskType: MaskType.None,
-                    cancelCaption: actionText,
-                    cancelCallback: actionCallback,
-                    snackBar: true
-                ));
-            }
+     
+            obj.InvokeOnMainThread(() => ShowProgressWorker(
+                status: displayMessage,
+                textOnly: true,
+                toastPosition: ToastPosition.Bottom, 
+                timeoutMs: timeoutMs,
+                maskType: MaskType.None,
+                cancelCaption: actionText,
+                cancelCallback: actionCallback,
+                snackBar: true
+            ));
         }
 
         public void SetStatus(string status)
@@ -1119,8 +1104,8 @@ namespace BigTed
             nfloat finalHudWidth = screenWidth - (desiredHorizontalMargin * 2);
 
             // Style configuration
-            HudView.BackgroundColor = UIColor.FromRGB(39, 39, 41);
-            StringLabel.TextColor = UIColor.White;
+            HudView.BackgroundColor = HudBackgroundColour;
+            StringLabel.TextColor = HudForegroundColor;
             StringLabel.Lines = 0; 
             StringLabel.LineBreakMode = UILineBreakMode.WordWrap;
             StringLabel.TextAlignment = UITextAlignment.Left;
