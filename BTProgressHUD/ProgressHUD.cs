@@ -1171,7 +1171,7 @@ namespace BigTed
                 nfloat barY = (finalHudHeight / 2) - (barHeight / 2);
                 
                 UIView separator = new UIView(new CGRect(barX, barY, barWidth, barHeight));
-                separator.BackgroundColor = UIColor.White;
+                separator.BackgroundColor = HudForegroundColor;
                 separator.Tag = SeparatorTag;
                 HudView.AddSubview(separator);
             }
