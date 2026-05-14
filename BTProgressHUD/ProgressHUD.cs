@@ -163,23 +163,11 @@ namespace BigTed
             string message,
             string actionText = null,
             Action actionCallback = null,
-            double timeoutMs = 3000,
-            int maxLength = 70)
+            double timeoutMs = 3000)
         {
             
-            string displayMessage = message;
-
-            if (maxLength > 0 && !string.IsNullOrEmpty(message) && message.Length > maxLength)
-            {
-                int trimLength = Math.Max(0, maxLength - 3);
-    
-                displayMessage = (trimLength > 0) 
-                    ? message.Substring(0, trimLength) + "..."
-                    : "...";
-            }
-     
             obj.InvokeOnMainThread(() => ShowProgressWorker(
-                status: displayMessage,
+                status: message,
                 textOnly: true,
                 toastPosition: ToastPosition.Bottom, 
                 timeoutMs: timeoutMs,
