@@ -719,7 +719,7 @@ namespace BigTed
                     _cancelHud.BackgroundColor = UIColor.Clear;
                     _cancelHud.SetTitleColor(HudForegroundColor, UIControlState.Normal);
                     _cancelHud.UserInteractionEnabled = true;
-                    _cancelHud.TitleLabel.Font = HudFont;
+                    _cancelHud.TitleLabel.Font = UIFont.SystemFontOfSize(16.0f, UIFontWeight.Heavy);
                     this.UserInteractionEnabled = true;
                 }
                 if (_cancelHud.Superview == null)
@@ -1153,16 +1153,6 @@ namespace BigTed
                 nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2);
 
                 CancelHudButton.Frame = new CGRect(buttonX, buttonY, actionButtonWidth, actionButtonHeight);
-
-                nfloat barWidth = 1f;
-                nfloat barHeight = finalHudHeight - (VerticalTextPadding * 2);
-                nfloat barX = buttonX - SeparatorButtonGap - barWidth;    
-                nfloat barY = (finalHudHeight / 2) - (barHeight / 2);
-                
-                UIView separator = new UIView(new CGRect(barX, barY, barWidth, barHeight));
-                separator.BackgroundColor = HudForegroundColor;
-                separator.Tag = SeparatorTag;
-                HudView.AddSubview(separator);
             }
             
             SpinnerView.StopAnimating();
