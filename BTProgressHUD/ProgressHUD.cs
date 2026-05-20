@@ -1087,8 +1087,9 @@ namespace BigTed
             
             // --- Screen Width Calculation (Container Size) ---
             // This part ensures the HUD itself is always wide
+            bool isIPad = UIDevice.CurrentDevice.UserInterfaceIdiom == UIUserInterfaceIdiom.Pad;
             nfloat screenWidth = UIApplication.SharedApplication.KeyWindow.Bounds.Width;
-            nfloat desiredHorizontalMargin = 8f; 
+            nfloat desiredHorizontalMargin = isIPad ? 48f : 8f; 
             nfloat finalHudWidth = screenWidth - (desiredHorizontalMargin * 2);
 
             // Style configuration
