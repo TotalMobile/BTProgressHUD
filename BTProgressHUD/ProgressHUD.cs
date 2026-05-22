@@ -146,12 +146,12 @@ namespace BigTed
 
         public void ShowContinuousProgress(string status = null, MaskType maskType = MaskType.None, double timeoutMs = 1000, UIImage img = null)
         {
-            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, timeoutMs, true, img));
+            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, null, null, timeoutMs, true, img));
         }
 
         public void ShowContinuousProgressTest(string status = null, MaskType maskType = MaskType.None, double timeoutMs = 1000)
         {
-            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, timeoutMs, true));
+            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, null, null, timeoutMs, true));
         }
 
         public void ShowToast(string status, MaskType maskType = MaskType.None, ToastPosition toastPosition = ToastPosition.Center, double timeoutMs = 1000)
@@ -163,6 +163,8 @@ namespace BigTed
             string message,
             string actionText = null,
             Action actionCallback = null,
+            nfloat? actionTextSize = null,
+            UIFontWeight? actionTextWeight = null,
             double timeoutMs = 3000)
         {
             
@@ -173,6 +175,8 @@ namespace BigTed
                 timeoutMs: timeoutMs,
                 maskType: MaskType.None,
                 cancelCaption: actionText,
+                cancelCaptionTextSize: actionTextSize,
+                cancelCaptionTextWeight: actionTextWeight,
                 cancelCallback: actionCallback,
                 snackBar: true
             ));
@@ -301,7 +305,7 @@ namespace BigTed
         }
 
         void ShowProgressWorker(float progress = -1, string status = null, MaskType maskType = MaskType.None, bool textOnly = false,
-                                 ToastPosition toastPosition = ToastPosition.Center, string cancelCaption = null, Action cancelCallback = null,
+                                 ToastPosition toastPosition = ToastPosition.Center, string cancelCaption = null, nfloat? cancelCaptionTextSize = null, UIFontWeight? cancelCaptionTextWeight = null, Action cancelCallback = null,
                                  double timeoutMs = 1000, bool showContinuousProgress = false, UIImage displayContinuousImage = null, bool snackBar = false)
         {
 
@@ -335,7 +339,11 @@ namespace BigTed
 
             if (!string.IsNullOrEmpty(cancelCaption))
             {
+                nfloat cancelCaptionTextSizeValue = cancelCaptionTextSize ?? 16.0f;
+                UIFontWeight cancelCaptionTextWeightValue = cancelCaptionTextWeight ?? UIFontWeight.Heavy;
+
                 CancelHudButton.SetTitle(cancelCaption, UIControlState.Normal);
+                CancelHudButton.TitleLabel.Font = UIFont.SystemFontOfSize(cancelCaptionTextSizeValue, cancelCaptionTextWeightValue);
                 CancelHudButton.TouchUpInside += delegate
                 {
                     Dismiss();
@@ -719,7 +727,7 @@ namespace BigTed
                     _cancelHud.BackgroundColor = UIColor.Clear;
                     _cancelHud.SetTitleColor(HudForegroundColor, UIControlState.Normal);
                     _cancelHud.UserInteractionEnabled = true;
-                    _cancelHud.TitleLabel.Font = UIFont.SystemFontOfSize(16.0f, UIFontWeight.Heavy);
+                    // _cancelHud.TitleLabel.Font = UIFont.SystemFontOfSize(16.0f, UIFontWeight.Heavy);
                     this.UserInteractionEnabled = true;
                 }
                 if (_cancelHud.Superview == null)
@@ -1086,10 +1094,11 @@ namespace BigTed
             nfloat TextButtonSpacing = 8f;
             
             // --- Screen Width Calculation (Container Size) ---
-            // This part ensures the HUD itself is always wide
-            bool isIPad = UIDevice.CurrentDevice.UserInterfaceIdiom == UIUserInterfaceIdiom.Pad;
-            nfloat screenWidth = UIApplication.SharedApplication.KeyWindow.Bounds.Width;
-            nfloat desiredHorizontalMargin = isIPad ? 48f : 8f; 
+            nfloat screenWidth = UIApplication.SharedApplication.KeyWindow?.Bounds.Width ?? UIScreen.MainScreen.Bounds.Width;
+
+            // Calculate adaptive 4% side margins, clamped between 4 and 48 points for layout safety
+            nfloat calculatedMargin = screenWidth * 0.04f; 
+            nfloat desiredHorizontalMargin = (nfloat)Math.Clamp(calculatedMargin, 4.0, 48.0);
             nfloat finalHudWidth = screenWidth - (desiredHorizontalMargin * 2);
 
             // Style configuration
