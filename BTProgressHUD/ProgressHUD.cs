@@ -727,7 +727,6 @@ namespace BigTed
                     _cancelHud.BackgroundColor = UIColor.Clear;
                     _cancelHud.SetTitleColor(HudForegroundColor, UIControlState.Normal);
                     _cancelHud.UserInteractionEnabled = true;
-                    // _cancelHud.TitleLabel.Font = UIFont.SystemFontOfSize(16.0f, UIFontWeight.Heavy);
                     this.UserInteractionEnabled = true;
                 }
                 if (_cancelHud.Superview == null)
