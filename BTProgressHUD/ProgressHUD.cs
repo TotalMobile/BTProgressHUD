@@ -146,17 +146,40 @@ namespace BigTed
 
         public void ShowContinuousProgress(string status = null, MaskType maskType = MaskType.None, double timeoutMs = 1000, UIImage img = null)
         {
-            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, timeoutMs, true, img));
+            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, null, null, timeoutMs, true, img));
         }
 
         public void ShowContinuousProgressTest(string status = null, MaskType maskType = MaskType.None, double timeoutMs = 1000)
         {
-            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, timeoutMs, true));
+            obj.InvokeOnMainThread(() => ShowProgressWorker(0, status, maskType, false, ToastPosition.Center, null, null, null, null, timeoutMs, true));
         }
 
         public void ShowToast(string status, MaskType maskType = MaskType.None, ToastPosition toastPosition = ToastPosition.Center, double timeoutMs = 1000)
         {
             obj.InvokeOnMainThread(() => ShowProgressWorker(status: status, textOnly: true, toastPosition: toastPosition, timeoutMs: timeoutMs, maskType: maskType));
+        }
+        
+        public void ShowSnackBar(
+            string message,
+            string actionText = null,
+            Action actionCallback = null,
+            nfloat? actionTextSize = null,
+            UIFontWeight? actionTextWeight = null,
+            double timeoutMs = 3000)
+        {
+            
+            obj.InvokeOnMainThread(() => ShowProgressWorker(
+                status: message,
+                textOnly: true,
+                toastPosition: ToastPosition.Bottom, 
+                timeoutMs: timeoutMs,
+                maskType: MaskType.None,
+                cancelCaption: actionText,
+                cancelCaptionTextSize: actionTextSize,
+                cancelCaptionTextWeight: actionTextWeight,
+                cancelCallback: actionCallback,
+                snackBar: true
+            ));
         }
 
         public void SetStatus(string status)
@@ -282,8 +305,8 @@ namespace BigTed
         }
 
         void ShowProgressWorker(float progress = -1, string status = null, MaskType maskType = MaskType.None, bool textOnly = false,
-                                 ToastPosition toastPosition = ToastPosition.Center, string cancelCaption = null, Action cancelCallback = null,
-                                 double timeoutMs = 1000, bool showContinuousProgress = false, UIImage displayContinuousImage = null)
+                                 ToastPosition toastPosition = ToastPosition.Center, string cancelCaption = null, nfloat? cancelCaptionTextSize = null, UIFontWeight? cancelCaptionTextWeight = null, Action cancelCallback = null,
+                                 double timeoutMs = 1000, bool showContinuousProgress = false, UIImage displayContinuousImage = null, bool snackBar = false)
         {
 
             Ring.ResetStyle(IsiOS7ForLookAndFeel, (IsiOS7ForLookAndFeel ? TintColor : UIColor.White));
@@ -316,7 +339,11 @@ namespace BigTed
 
             if (!string.IsNullOrEmpty(cancelCaption))
             {
+                nfloat cancelCaptionTextSizeValue = cancelCaptionTextSize ?? 16.0f;
+                UIFontWeight cancelCaptionTextWeightValue = cancelCaptionTextWeight ?? UIFontWeight.Heavy;
+
                 CancelHudButton.SetTitle(cancelCaption, UIControlState.Normal);
+                CancelHudButton.TitleLabel.Font = UIFont.SystemFontOfSize(cancelCaptionTextSizeValue, cancelCaptionTextWeightValue);
                 CancelHudButton.TouchUpInside += delegate
                 {
                     Dismiss();
@@ -330,6 +357,11 @@ namespace BigTed
 
             UpdatePosition(textOnly);
 
+            if (snackBar)
+            {
+                SetSnackbarLayout(textOnly, cancelCaption);
+            }
+            
             if (showContinuousProgress)
             {
                 if (displayContinuousImage != null)
@@ -695,7 +727,6 @@ namespace BigTed
                     _cancelHud.BackgroundColor = UIColor.Clear;
                     _cancelHud.SetTitleColor(HudForegroundColor, UIControlState.Normal);
                     _cancelHud.UserInteractionEnabled = true;
-                    _cancelHud.TitleLabel.Font = HudFont;
                     this.UserInteractionEnabled = true;
                 }
                 if (_cancelHud.Superview == null)
@@ -1033,6 +1064,107 @@ namespace BigTed
 
             if (newtimer != null)
                 _progressTimer = newtimer;
+        }
+
+         public void SetSnackbarLayout(bool textOnly, string actionText)
+        {
+            const int SeparatorTag = 999;
+            
+            bool hasAction = !string.IsNullOrEmpty(actionText);
+            bool isSnackBar = textOnly || hasAction;
+
+            // Remove existing separator
+            UIView existingSeparator = HudView.ViewWithTag(SeparatorTag);
+            if (existingSeparator != null)
+            {
+                existingSeparator.RemoveFromSuperview();
+            }
+
+            if (!isSnackBar)
+            {
+                return;
+            }
+
+            // --- Layout Constants ---
+            nfloat MinSnackBarHeight = 48f;
+            nfloat VerticalTextPadding = 12f;
+            nfloat LeftRightPadding = 16f;
+            nfloat SeparatorButtonGap = 4f;
+            nfloat TextButtonSpacing = 8f;
+            
+            // --- Screen Width Calculation (Container Size) ---
+            nfloat screenWidth = UIApplication.SharedApplication.KeyWindow?.Bounds.Width ?? UIScreen.MainScreen.Bounds.Width;
+
+            // Calculate adaptive 4% side margins, clamped between 4 and 48 points for layout safety
+            nfloat calculatedMargin = screenWidth * 0.04f; 
+            nfloat desiredHorizontalMargin = (nfloat)Math.Clamp(calculatedMargin, 4.0, 48.0);
+            nfloat finalHudWidth = screenWidth - (desiredHorizontalMargin * 2);
+
+            // Style configuration
+            HudView.BackgroundColor = HudBackgroundColour;
+            StringLabel.TextColor = HudForegroundColor;
+            StringLabel.Lines = 0; 
+            StringLabel.LineBreakMode = UILineBreakMode.WordWrap;
+            StringLabel.TextAlignment = UITextAlignment.Left;
+            
+            // --- 2. DETERMINE AVAILABLE TEXT WIDTH ---
+            nfloat maxLabelWidth;
+
+            if (!hasAction)
+            {
+                // TEXT ONLY: Use the full container width minus padding
+                maxLabelWidth = finalHudWidth - (LeftRightPadding * 2);
+                CancelHudButton.Hidden = true; 
+            }
+            else
+            {
+                // WITH BUTTON: Calculate width minus the button and separator space
+                CancelHudButton.Hidden = false;
+                CancelHudButton.SetTitle(actionText, UIControlState.Normal);
+                CancelHudButton.SetTitleColor(UIColor.White, UIControlState.Normal);
+
+                nfloat actionButtonWidth = 50f + LeftRightPadding; 
+                nfloat tempButtonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
+                maxLabelWidth = tempButtonX - SeparatorButtonGap - 1f - TextButtonSpacing - LeftRightPadding;
+            }
+
+            // 3. MEASURE TEXT HEIGHT
+            string @string = StringLabel.Text ?? string.Empty;
+            nfloat stringHeight;
+            
+            var stringSize = new NSString(@string).GetBoundingRect(
+                new CGSize(maxLabelWidth, nfloat.MaxValue),
+                NSStringDrawingOptions.UsesLineFragmentOrigin,
+                new UIStringAttributes { Font = StringLabel.Font },
+                null
+            );
+            stringHeight = stringSize.Height;
+            
+            // 4. CALCULATE AND APPLY HUD BOUNDS
+            nfloat requiredHeight = stringHeight + (VerticalTextPadding * 2);
+            nfloat finalHudHeight = NMath.Max(MinSnackBarHeight, requiredHeight);    
+            
+            // This forces the HUD container to the calculated wide width
+            HudView.Bounds = new CGRect(0, 0, finalHudWidth, finalHudHeight);
+            
+            // 5. POSITION MESSAGE LABEL
+            nfloat labelX = LeftRightPadding;
+            nfloat labelY = (finalHudHeight / 2) - (stringHeight / 2);
+            StringLabel.Frame = new CGRect(labelX, labelY, maxLabelWidth, stringHeight);
+
+            // 6. POSITION ACTION BUTTON & SEPARATOR (Only if needed)
+            if (hasAction)
+            {
+                nfloat actionButtonWidth = 50f + LeftRightPadding; 
+                nfloat actionButtonHeight = 20f; 
+                nfloat buttonX = finalHudWidth - LeftRightPadding - actionButtonWidth;
+                nfloat buttonY = (finalHudHeight / 2) - (actionButtonHeight / 2);
+
+                CancelHudButton.Frame = new CGRect(buttonX, buttonY, actionButtonWidth, actionButtonHeight);
+            }
+            
+            SpinnerView.StopAnimating();
+            RingLayer.StrokeEnd = 0.0f;
         }
 
         void UpdatePosition(bool textOnly = false)
